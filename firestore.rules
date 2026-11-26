@@ -1,0 +1,580 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Core Identity & RBAC Primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+             request.auth.token.email == 'ebenezeryeapeh99@gmail.com' &&
+             request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isConsumerRole(role) {
+      return role in ['USER', 'MEMBER', 'PARENT'];
+    }
+
+    function isApprovalRequiredRole(role) {
+      return role in ['STAFF', 'LECTURER', 'PARTNER'];
+    }
+
+    function isSelfSignupRole(role) {
+      return isConsumerRole(role) || isApprovalRequiredRole(role);
+    }
+
+    function hasUserProfile() {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function currentUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isActiveMember() {
+      return hasUserProfile() && currentUserData().membershipStatus == 'ACTIVE';
+    }
+
+    function hasRole(allowedRoles) {
+      return isAdmin() || (isActiveMember() && currentUserData().accountRole in allowedRoles);
+    }
+
+    function isSuperAdmin() {
+      return isAdmin() || hasRole(['SUPER_ADMIN']);
+    }
+
+    function isAcademyManager() {
+      return hasRole(['SUPER_ADMIN', 'HOD', 'LECTURER']);
+    }
+
+    function isProjectManager() {
+      return hasRole(['SUPER_ADMIN', 'HOD', 'STAFF']);
+    }
+
+    function existingOrAuthUid(uidVal) {
+      return isAdmin() || uidVal == request.auth.uid;
+    }
+
+    // Entity Validators
+    function isValidUserProfile(data) {
+      return data.userId is string && isValidId(data.userId) &&
+             data.userId == existingOrAuthUid(data.userId) &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80 &&
+             data.email is string && data.email.size() >= 3 && data.email.size() <= 120 &&
+             data.accountRole in ['USER', 'MEMBER', 'STAFF', 'LECTURER', 'PARENT', 'HOD', 'FINANCE', 'PARTNER', 'SUPER_ADMIN'] &&
+             data.membershipStatus in ['ACTIVE', 'PENDING', 'SUSPENDED'] &&
+             (!('organization' in data) || (data.organization is string && data.organization.size() <= 100)) &&
+             (!('phone' in data) || (data.phone is string && data.phone.size() <= 30)) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidAcademyCourse(data) {
+      return data.title is string && data.title.size() >= 3 && data.title.size() <= 120 &&
+             data.programType in ['TRAINING', 'CERTIFICATION'] &&
+             data.level is string && data.level.size() >= 2 && data.level.size() <= 60 &&
+             data.duration is string && data.duration.size() >= 2 && data.duration.size() <= 40 &&
+             data.description is string && data.description.size() >= 10 && data.description.size() <= 1000 &&
+             data.instructorId is string && isValidId(data.instructorId) &&
+             data.instructorName is string && data.instructorName.size() >= 2 && data.instructorName.size() <= 80 &&
+             data.status in ['DRAFT', 'PUBLISHED', 'ARCHIVED'] &&
+             data.createdBy is string && isValidId(data.createdBy) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidCodivaProject(data) {
+      return data.title is string && data.title.size() >= 3 && data.title.size() <= 120 &&
+             data.category is string && data.category.size() >= 2 && data.category.size() <= 80 &&
+             data.summary is string && data.summary.size() >= 10 && data.summary.size() <= 1000 &&
+             data.ownerId is string && isValidId(data.ownerId) &&
+             data.leadUid is string && isValidId(data.leadUid) &&
+             (!('clientUid' in data) || isValidId(data.clientUid)) &&
+             data.visibility in ['PUBLIC', 'INTERNAL', 'CLIENT_ONLY'] &&
+             data.status in ['PLANNING', 'IN_PROGRESS', 'COMPLETED', 'ARCHIVED'] &&
+             data.budgetCents is int && data.budgetCents >= 0 && data.budgetCents <= 1000000000 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidProjectInquiry(data) {
+      return data.userId is string && data.userId == request.auth.uid &&
+             data.serviceCategory is string && data.serviceCategory.size() >= 2 && data.serviceCategory.size() <= 80 &&
+             data.projectTitle is string && data.projectTitle.size() >= 3 && data.projectTitle.size() <= 100 &&
+             data.details is string && data.details.size() >= 10 && data.details.size() <= 1000 &&
+             data.budgetTier is string && data.budgetTier.size() >= 2 && data.budgetTier.size() <= 40 &&
+             data.status in ['SUBMITTED', 'CANCELLED'] &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidCourseEnrollment(data) {
+      return data.userId is string && data.userId == request.auth.uid &&
+             data.courseId is string && data.courseId.size() >= 2 && data.courseId.size() <= 60 &&
+             data.courseTitle is string && data.courseTitle.size() >= 3 && data.courseTitle.size() <= 100 &&
+             data.programType in ['TRAINING', 'CERTIFICATION'] &&
+             data.progressPercent is int && data.progressPercent >= 0 && data.progressPercent <= 100 &&
+             data.status in ['ENROLLED', 'COMPLETED'] &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidCareerApplication(data) {
+      return data.userId is string && data.userId == request.auth.uid &&
+             data.roleId is string && data.roleId.size() >= 2 && data.roleId.size() <= 60 &&
+             data.roleTitle is string && data.roleTitle.size() >= 3 && data.roleTitle.size() <= 100 &&
+             data.applicantName is string && data.applicantName.size() >= 2 && data.applicantName.size() <= 80 &&
+             data.portfolioNote is string && data.portfolioNote.size() >= 5 && data.portfolioNote.size() <= 600 &&
+             data.status in ['SUBMITTED', 'WITHDRAWN'] &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidWorkspaceRecord(data) {
+      return data.userId is string && data.userId == request.auth.uid &&
+             data.moduleType in ['USER', 'COURSE', 'EMPLOYEE', 'PAYMENT', 'ANNOUNCEMENT', 'NEWS', 'SUPPORT', 'TASK'] &&
+             data.title is string && data.title.size() >= 2 && data.title.size() <= 120 &&
+             data.subtitle is string && data.subtitle.size() <= 160 &&
+             data.detail is string && data.detail.size() <= 600 &&
+             data.category is string && data.category.size() >= 1 && data.category.size() <= 60 &&
+             data.status is string && data.status.size() >= 1 && data.status.size() <= 40 &&
+             data.amountCents is int && data.amountCents >= 0 && data.amountCents <= 100000000 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidAuditLogEntry(data) {
+      return data.userId is string && data.userId == request.auth.uid &&
+             data.actorEmail is string && data.actorEmail.size() >= 3 && data.actorEmail.size() <= 120 &&
+             data.action is string && data.action.size() >= 2 && data.action.size() <= 80 &&
+             data.target is string && data.target.size() >= 2 && data.target.size() <= 120 &&
+             data.severity in ['INFO', 'WARNING', 'CRITICAL'] &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    function isValidSystemSettings(data) {
+      return data.userId is string && data.userId == request.auth.uid &&
+             data.autoApproveMembers is bool &&
+             data.maintenanceMode is bool &&
+             data.paymentsEnabled is bool &&
+             data.auditLoggingEnabled is bool &&
+             data.holidayNoticeEnabled is bool &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidPublicPortalConfig(data) {
+      return data.portalTitle is string && data.portalTitle.size() >= 2 && data.portalTitle.size() <= 80 &&
+             data.publicUrl is string && data.publicUrl.size() >= 8 && data.publicUrl.size() <= 300 &&
+             data.customDomain is string && data.customDomain.size() <= 120 &&
+             data.welcomeMessage is string && data.welcomeMessage.size() >= 5 && data.welcomeMessage.size() <= 400 &&
+             data.inviteCode is string && data.inviteCode.size() >= 3 && data.inviteCode.size() <= 40 &&
+             data.portalPublished is bool &&
+             data.allowPublicSignUp is bool &&
+             data.requireAdminApproval is bool &&
+             data.updatedBy is string && data.updatedBy.size() >= 3 && data.updatedBy.size() <= 120 &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidAdminPublication(data) {
+      return data.title is string && data.title.size() >= 2 && data.title.size() <= 120 &&
+             data.summary is string && data.summary.size() >= 2 && data.summary.size() <= 240 &&
+             data.content is string && data.content.size() >= 5 && data.content.size() <= 2000 &&
+             data.category in ['ANNOUNCEMENT', 'DOCUMENT', 'NEWS', 'GUIDE', 'FAQ'] &&
+             data.targetRole in ['ALL', 'USER', 'MEMBER', 'STAFF', 'LECTURER', 'PARENT', 'HOD', 'FINANCE', 'PARTNER'] &&
+             data.documentUrl is string && data.documentUrl.size() <= 400 &&
+             data.documentLabel is string && data.documentLabel.size() <= 80 &&
+             data.expiresAtLabel is string && data.expiresAtLabel.size() <= 60 &&
+             data.status in ['PUBLISHED', 'DRAFT', 'EXPIRED'] &&
+             data.publishedBy is string && data.publishedBy.size() >= 3 && data.publishedBy.size() <= 120 &&
+             data.createdBy is string && isValidId(data.createdBy) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidAppRelease(data) {
+      return data.platform in ['ANDROID', 'IOS', 'WINDOWS', 'WEB'] &&
+             data.versionName is string && data.versionName.size() >= 1 && data.versionName.size() <= 40 &&
+             data.buildNumber is int && data.buildNumber >= 1 && data.buildNumber <= 1000000 &&
+             data.releaseNotes is string && data.releaseNotes.size() >= 3 && data.releaseNotes.size() <= 600 &&
+             data.downloadUrl is string && data.downloadUrl.size() >= 8 && data.downloadUrl.size() <= 400 &&
+             data.status in ['LIVE', 'BETA', 'RETIRED'] &&
+             data.updatedBy is string && data.updatedBy.size() >= 3 && data.updatedBy.size() <= 120 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    // Public Hosting & Portal Launch Configuration
+    match /public_portal/{docId} {
+      allow get: if isSignedIn() && docId == 'config';
+      allow list: if false;
+
+      allow create, update: if isAdmin() &&
+                               docId == 'config' &&
+                               isValidPublicPortalConfig(incoming()) &&
+                               incoming().keys().hasAll(['portalTitle', 'publicUrl', 'customDomain', 'welcomeMessage', 'inviteCode', 'portalPublished', 'allowPublicSignUp', 'requireAdminApproval', 'updatedBy', 'updatedAt']) &&
+                               incoming().keys().hasOnly(['portalTitle', 'publicUrl', 'customDomain', 'welcomeMessage', 'inviteCode', 'portalPublished', 'allowPublicSignUp', 'requireAdminApproval', 'updatedBy', 'updatedAt']);
+
+      allow delete: if false;
+    }
+
+    // Admin Publications & Shared Documents Collection
+    match /publications/{pubId} {
+      allow get: if isValidId(pubId) && (
+        isAdmin() ||
+        (isActiveMember() && existing().status == 'PUBLISHED')
+      );
+
+      allow list: if isAdmin() || (isSignedIn() && existing().status == 'PUBLISHED');
+
+      allow create: if isValidId(pubId) &&
+                       isAdmin() &&
+                       isValidAdminPublication(incoming()) &&
+                       incoming().keys().hasAll(['title', 'summary', 'content', 'category', 'targetRole', 'documentUrl', 'documentLabel', 'expiresAtLabel', 'status', 'publishedBy', 'createdBy', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['title', 'summary', 'content', 'category', 'targetRole', 'documentUrl', 'documentLabel', 'expiresAtLabel', 'status', 'publishedBy', 'createdBy', 'createdAt', 'updatedAt']) &&
+                       incoming().createdBy == request.auth.uid;
+
+      allow update: if isValidId(pubId) &&
+                       isAdmin() &&
+                       isValidAdminPublication(incoming()) &&
+                       incoming().createdBy == existing().createdBy &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['title', 'summary', 'content', 'category', 'targetRole', 'documentUrl', 'documentLabel', 'expiresAtLabel', 'status', 'publishedBy', 'updatedAt']);
+
+      allow delete: if isValidId(pubId) && isAdmin();
+    }
+
+    // CODIVA Multi-Platform App Downloads & Store Releases Collection
+    match /app_releases/{releaseId} {
+      allow get: if isValidId(releaseId) && (
+        isAdmin() ||
+        (isActiveMember() && existing().status in ['LIVE', 'BETA'])
+      );
+
+      allow list: if isAdmin() || (isSignedIn() && existing().status == 'LIVE');
+
+      allow create: if isValidId(releaseId) &&
+                       isAdmin() &&
+                       isValidAppRelease(incoming()) &&
+                       incoming().keys().hasAll(['platform', 'versionName', 'buildNumber', 'releaseNotes', 'downloadUrl', 'status', 'updatedBy', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['platform', 'versionName', 'buildNumber', 'releaseNotes', 'downloadUrl', 'status', 'updatedBy', 'createdAt', 'updatedAt']);
+
+      allow update: if isValidId(releaseId) &&
+                       isAdmin() &&
+                       isValidAppRelease(incoming()) &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['platform', 'versionName', 'buildNumber', 'releaseNotes', 'downloadUrl', 'status', 'updatedBy', 'updatedAt']);
+
+      allow delete: if isValidId(releaseId) && isAdmin();
+    }
+
+    // CODIVA Academy Collection (RBAC: Super Admin, HOD, Lecturer, Active Learners)
+    match /academy/{courseId} {
+      allow get: if isValidId(courseId) && (
+        isAdmin() ||
+        (isActiveMember() && (
+          existing().status == 'PUBLISHED' ||
+          existing().instructorId == request.auth.uid ||
+          existing().createdBy == request.auth.uid ||
+          hasRole(['SUPER_ADMIN', 'HOD'])
+        ))
+      );
+
+      allow list: if isAdmin() || (
+        isSignedIn() && (
+          existing().status == 'PUBLISHED' ||
+          existing().instructorId == request.auth.uid ||
+          existing().createdBy == request.auth.uid
+        )
+      );
+
+      allow create: if isValidId(courseId) &&
+                       isSignedIn() &&
+                       isValidAcademyCourse(incoming()) &&
+                       incoming().keys().hasAll(['title', 'programType', 'level', 'duration', 'description', 'instructorId', 'instructorName', 'status', 'createdBy', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['title', 'programType', 'level', 'duration', 'description', 'instructorId', 'instructorName', 'status', 'createdBy', 'createdAt', 'updatedAt']) &&
+                       isAcademyManager() &&
+                       incoming().status in ['DRAFT', 'PUBLISHED'] &&
+                       (isAdmin() || incoming().createdBy == request.auth.uid) &&
+                       (hasRole(['SUPER_ADMIN', 'HOD']) || incoming().instructorId == request.auth.uid);
+
+      allow update: if isValidId(courseId) &&
+                       isSignedIn() &&
+                       isValidAcademyCourse(incoming()) &&
+                       incoming().createdBy == existing().createdBy &&
+                       incoming().createdAt == existing().createdAt &&
+                       (existing().status != 'ARCHIVED' || isSuperAdmin()) &&
+                       (
+                         (hasRole(['SUPER_ADMIN', 'HOD']) &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['title', 'programType', 'level', 'duration', 'description', 'instructorId', 'instructorName', 'status', 'updatedAt'])) ||
+                         (hasRole(['LECTURER']) &&
+                           (existing().instructorId == request.auth.uid || existing().createdBy == request.auth.uid) &&
+                           incoming().status in ['DRAFT', 'PUBLISHED'] &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['title', 'level', 'duration', 'description', 'status', 'updatedAt']))
+                       );
+
+      allow delete: if isValidId(courseId) && isSuperAdmin();
+    }
+
+    // CODIVA Projects Collection (RBAC: Super Admin, HOD, Staff, Finance, Assigned Client)
+    match /projects/{projectId} {
+      allow get: if isValidId(projectId) && (
+        isAdmin() ||
+        (isActiveMember() && (
+          existing().visibility == 'PUBLIC' ||
+          existing().ownerId == request.auth.uid ||
+          existing().leadUid == request.auth.uid ||
+          ('clientUid' in existing() && existing().clientUid == request.auth.uid) ||
+          hasRole(['SUPER_ADMIN', 'HOD', 'STAFF', 'FINANCE'])
+        ))
+      );
+
+      allow list: if isAdmin() || (
+        isSignedIn() && (
+          existing().visibility == 'PUBLIC' ||
+          existing().ownerId == request.auth.uid ||
+          existing().leadUid == request.auth.uid ||
+          ('clientUid' in existing() && existing().clientUid == request.auth.uid)
+        )
+      );
+
+      allow create: if isValidId(projectId) &&
+                       isSignedIn() &&
+                       isValidCodivaProject(incoming()) &&
+                       incoming().keys().hasAll(['title', 'category', 'summary', 'ownerId', 'leadUid', 'visibility', 'status', 'budgetCents', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['title', 'category', 'summary', 'ownerId', 'leadUid', 'clientUid', 'visibility', 'status', 'budgetCents', 'createdAt', 'updatedAt']) &&
+                       isProjectManager() &&
+                       incoming().status in ['PLANNING', 'IN_PROGRESS'] &&
+                       (isAdmin() || incoming().ownerId == request.auth.uid);
+
+      allow update: if isValidId(projectId) &&
+                       isSignedIn() &&
+                       isValidCodivaProject(incoming()) &&
+                       incoming().ownerId == existing().ownerId &&
+                       incoming().createdAt == existing().createdAt &&
+                       (!(existing().status in ['COMPLETED', 'ARCHIVED']) || isSuperAdmin()) &&
+                       (
+                         (isSuperAdmin() &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['title', 'category', 'summary', 'leadUid', 'clientUid', 'visibility', 'status', 'budgetCents', 'updatedAt'])) ||
+                         (hasRole(['HOD']) &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['title', 'category', 'summary', 'leadUid', 'clientUid', 'visibility', 'status', 'updatedAt'])) ||
+                         (hasRole(['STAFF']) &&
+                           (existing().leadUid == request.auth.uid || existing().ownerId == request.auth.uid) &&
+                           incoming().status in ['PLANNING', 'IN_PROGRESS', 'COMPLETED'] &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['summary', 'status', 'updatedAt'])) ||
+                         (hasRole(['FINANCE']) &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['budgetCents', 'updatedAt']))
+                       );
+
+      allow delete: if isValidId(projectId) && isSuperAdmin();
+    }
+
+    // User Profile Collection (PII isolated; RBAC role promotion restricted to Founder/Super Admin)
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isSuperAdmin());
+      allow list: if isAdmin();
+
+      allow create: if isValidId(userId) &&
+                       isOwner(userId) &&
+                       isValidUserProfile(incoming()) &&
+                       incoming().keys().hasAll(['userId', 'displayName', 'email', 'accountRole', 'membershipStatus', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'displayName', 'email', 'accountRole', 'organization', 'phone', 'membershipStatus', 'createdAt', 'updatedAt']) &&
+                       (
+                         isAdmin() ||
+                         (isConsumerRole(incoming().accountRole) && incoming().membershipStatus in ['ACTIVE', 'PENDING']) ||
+                         (isApprovalRequiredRole(incoming().accountRole) && incoming().membershipStatus == 'PENDING')
+                       );
+
+      allow update: if isValidId(userId) &&
+                       isValidUserProfile(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().email == existing().email &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().keys().hasOnly(['userId', 'displayName', 'email', 'accountRole', 'organization', 'phone', 'membershipStatus', 'createdAt', 'updatedAt']) &&
+                       (
+                         (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'accountRole', 'organization', 'phone', 'membershipStatus', 'updatedAt'])) ||
+                         (isSuperAdmin() &&
+                           existing().email != 'ebenezeryeapeh99@gmail.com' &&
+                           incoming().accountRole != 'SUPER_ADMIN' &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'accountRole', 'organization', 'phone', 'membershipStatus', 'updatedAt'])) ||
+                         (isOwner(userId) &&
+                           existing().membershipStatus != 'SUSPENDED' &&
+                           (isConsumerRole(incoming().accountRole) || incoming().accountRole == existing().accountRole) &&
+                           incoming().membershipStatus == existing().membershipStatus &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'accountRole', 'organization', 'phone', 'updatedAt']))
+                       );
+
+      allow delete: if isValidId(userId) && (
+        isOwner(userId) ||
+        isAdmin() ||
+        (isSuperAdmin() && existing().email != 'ebenezeryeapeh99@gmail.com')
+      );
+
+      // Project Inquiries Subcollection
+      match /inquiries/{inquiryId} {
+        allow get: if isValidId(userId) && isValidId(inquiryId) && isOwner(userId);
+        allow list: if isValidId(userId) && isOwner(userId);
+
+        allow create: if isValidId(userId) &&
+                         isValidId(inquiryId) &&
+                         isOwner(userId) &&
+                         isValidProjectInquiry(incoming()) &&
+                         incoming().keys().hasAll(['userId', 'serviceCategory', 'projectTitle', 'details', 'budgetTier', 'status', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'serviceCategory', 'projectTitle', 'details', 'budgetTier', 'status', 'createdAt', 'updatedAt']) &&
+                         incoming().status == 'SUBMITTED';
+
+        allow update: if isValidId(userId) &&
+                         isValidId(inquiryId) &&
+                         isOwner(userId) &&
+                         isValidProjectInquiry(incoming()) &&
+                         existing().status != 'CANCELLED' &&
+                         incoming().userId == existing().userId &&
+                         incoming().serviceCategory == existing().serviceCategory &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['projectTitle', 'details', 'budgetTier', 'status', 'updatedAt']);
+
+        allow delete: if isValidId(userId) && isValidId(inquiryId) && isOwner(userId);
+      }
+
+      // Academy Course Enrollments Subcollection
+      match /enrollments/{enrollmentId} {
+        allow get: if isValidId(userId) && isValidId(enrollmentId) && isOwner(userId);
+        allow list: if isValidId(userId) && isOwner(userId);
+
+        allow create: if isValidId(userId) &&
+                         isValidId(enrollmentId) &&
+                         isOwner(userId) &&
+                         isValidCourseEnrollment(incoming()) &&
+                         incoming().keys().hasAll(['userId', 'courseId', 'courseTitle', 'programType', 'progressPercent', 'status', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'courseId', 'courseTitle', 'programType', 'progressPercent', 'status', 'createdAt', 'updatedAt']) &&
+                         incoming().status == 'ENROLLED' &&
+                         incoming().progressPercent == 0;
+
+        allow update: if isValidId(userId) &&
+                         isValidId(enrollmentId) &&
+                         isOwner(userId) &&
+                         isValidCourseEnrollment(incoming()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().courseId == existing().courseId &&
+                         incoming().courseTitle == existing().courseTitle &&
+                         incoming().programType == existing().programType &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['progressPercent', 'status', 'updatedAt']);
+
+        allow delete: if isValidId(userId) && isValidId(enrollmentId) && isOwner(userId);
+      }
+
+      // Career Applications Subcollection
+      match /applications/{applicationId} {
+        allow get: if isValidId(userId) && isValidId(applicationId) && isOwner(userId);
+        allow list: if isValidId(userId) && isOwner(userId);
+
+        allow create: if isValidId(userId) &&
+                         isValidId(applicationId) &&
+                         isOwner(userId) &&
+                         isValidCareerApplication(incoming()) &&
+                         incoming().keys().hasAll(['userId', 'roleId', 'roleTitle', 'applicantName', 'portfolioNote', 'status', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'roleId', 'roleTitle', 'applicantName', 'portfolioNote', 'status', 'createdAt', 'updatedAt']) &&
+                         incoming().status == 'SUBMITTED';
+
+        allow update: if isValidId(userId) &&
+                         isValidId(applicationId) &&
+                         isOwner(userId) &&
+                         isValidCareerApplication(incoming()) &&
+                         existing().status != 'WITHDRAWN' &&
+                         incoming().userId == existing().userId &&
+                         incoming().roleId == existing().roleId &&
+                         incoming().roleTitle == existing().roleTitle &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['applicantName', 'portfolioNote', 'status', 'updatedAt']);
+
+        allow delete: if isValidId(userId) && isValidId(applicationId) && isOwner(userId);
+      }
+
+      // Operational Workspace Records Subcollection (Super Admin & Role Dashboards)
+      match /workspace_records/{recordId} {
+        allow get: if isValidId(userId) && isValidId(recordId) && isOwner(userId);
+        allow list: if isValidId(userId) && isOwner(userId);
+
+        allow create: if isValidId(userId) &&
+                         isValidId(recordId) &&
+                         isOwner(userId) &&
+                         isValidWorkspaceRecord(incoming()) &&
+                         incoming().keys().hasAll(['userId', 'moduleType', 'title', 'subtitle', 'detail', 'category', 'status', 'amountCents', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'moduleType', 'title', 'subtitle', 'detail', 'category', 'status', 'amountCents', 'createdAt', 'updatedAt']);
+
+        allow update: if isValidId(userId) &&
+                         isValidId(recordId) &&
+                         isOwner(userId) &&
+                         isValidWorkspaceRecord(incoming()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().moduleType == existing().moduleType &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['title', 'subtitle', 'detail', 'category', 'status', 'amountCents', 'updatedAt']);
+
+        allow delete: if isValidId(userId) && isValidId(recordId) && isOwner(userId);
+      }
+
+      // Append-Only Security & Audit Logs Subcollection
+      match /audit_logs/{logId} {
+        allow get: if isValidId(userId) && isValidId(logId) && isOwner(userId);
+        allow list: if isValidId(userId) && isOwner(userId);
+
+        allow create: if isValidId(userId) &&
+                         isValidId(logId) &&
+                         isOwner(userId) &&
+                         isValidAuditLogEntry(incoming()) &&
+                         incoming().keys().hasAll(['userId', 'actorEmail', 'action', 'target', 'severity', 'createdAt']) &&
+                         incoming().keys().hasOnly(['userId', 'actorEmail', 'action', 'target', 'severity', 'createdAt']);
+
+        allow update: if false;
+        allow delete: if false;
+      }
+
+      // System Settings Document
+      match /system_config/{configId} {
+        allow get: if isValidId(userId) && configId == 'settings' && isOwner(userId);
+        allow list: if false;
+
+        allow create: if isValidId(userId) &&
+                         configId == 'settings' &&
+                         isOwner(userId) &&
+                         isValidSystemSettings(incoming()) &&
+                         incoming().keys().hasAll(['userId', 'autoApproveMembers', 'maintenanceMode', 'paymentsEnabled', 'auditLoggingEnabled', 'holidayNoticeEnabled', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'autoApproveMembers', 'maintenanceMode', 'paymentsEnabled', 'auditLoggingEnabled', 'holidayNoticeEnabled', 'updatedAt']);
+
+        allow update: if isValidId(userId) &&
+                         configId == 'settings' &&
+                         isOwner(userId) &&
+                         isValidSystemSettings(incoming()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['autoApproveMembers', 'maintenanceMode', 'paymentsEnabled', 'auditLoggingEnabled', 'holidayNoticeEnabled', 'updatedAt']);
+
+        allow delete: if false;
+      }
+    }
+  }
+}

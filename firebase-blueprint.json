@@ -1,0 +1,266 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated CODIVA account profile and active ecosystem role",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "accountRole": {
+          "type": "string",
+          "enum": ["USER", "MEMBER", "STAFF", "LECTURER", "PARENT", "HOD", "FINANCE", "PARTNER", "SUPER_ADMIN"]
+        },
+        "organization": { "type": "string" },
+        "phone": { "type": "string" },
+        "membershipStatus": { "type": "string", "enum": ["ACTIVE", "PENDING", "SUSPENDED"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "displayName", "email", "accountRole", "membershipStatus", "createdAt", "updatedAt"]
+    },
+    "ProjectInquiry": {
+      "title": "ProjectInquiry",
+      "description": "Client project or service inquiry submitted to CODIVA Technologies",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "serviceCategory": { "type": "string" },
+        "projectTitle": { "type": "string" },
+        "details": { "type": "string" },
+        "budgetTier": { "type": "string" },
+        "status": { "type": "string", "enum": ["SUBMITTED", "CANCELLED"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "serviceCategory", "projectTitle", "details", "budgetTier", "status", "createdAt", "updatedAt"]
+    },
+    "CourseEnrollment": {
+      "title": "CourseEnrollment",
+      "description": "User enrollment in a CODIVA Training and Certification program",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "courseId": { "type": "string" },
+        "courseTitle": { "type": "string" },
+        "programType": { "type": "string", "enum": ["TRAINING", "CERTIFICATION"] },
+        "progressPercent": { "type": "integer" },
+        "status": { "type": "string", "enum": ["ENROLLED", "COMPLETED"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "courseId", "courseTitle", "programType", "progressPercent", "status", "createdAt", "updatedAt"]
+    },
+    "CareerApplication": {
+      "title": "CareerApplication",
+      "description": "Job application submitted for an open CODIVA Technologies role",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "roleId": { "type": "string" },
+        "roleTitle": { "type": "string" },
+        "applicantName": { "type": "string" },
+        "portfolioNote": { "type": "string" },
+        "status": { "type": "string", "enum": ["SUBMITTED", "WITHDRAWN"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "roleId", "roleTitle", "applicantName", "portfolioNote", "status", "createdAt", "updatedAt"]
+    },
+    "WorkspaceRecord": {
+      "title": "WorkspaceRecord",
+      "description": "Operational records across CODIVA Admin and Role Dashboards (users, courses, employees, payments, announcements, news, support, tasks)",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "moduleType": {
+          "type": "string",
+          "enum": ["USER", "COURSE", "EMPLOYEE", "PAYMENT", "ANNOUNCEMENT", "NEWS", "SUPPORT", "TASK"]
+        },
+        "title": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "detail": { "type": "string" },
+        "category": { "type": "string" },
+        "status": { "type": "string" },
+        "amountCents": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "moduleType", "title", "subtitle", "detail", "category", "status", "amountCents", "createdAt", "updatedAt"]
+    },
+    "AuditLogEntry": {
+      "title": "AuditLogEntry",
+      "description": "Append-only security and administration audit log entry",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "actorEmail": { "type": "string" },
+        "action": { "type": "string" },
+        "target": { "type": "string" },
+        "severity": { "type": "string", "enum": ["INFO", "WARNING", "CRITICAL"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "actorEmail", "action", "target", "severity", "createdAt"]
+    },
+    "SystemSettingsDoc": {
+      "title": "SystemSettingsDoc",
+      "description": "Platform configuration toggles for CODIVA ecosystem",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "autoApproveMembers": { "type": "boolean" },
+        "maintenanceMode": { "type": "boolean" },
+        "paymentsEnabled": { "type": "boolean" },
+        "auditLoggingEnabled": { "type": "boolean" },
+        "holidayNoticeEnabled": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "autoApproveMembers", "maintenanceMode", "paymentsEnabled", "auditLoggingEnabled", "holidayNoticeEnabled", "updatedAt"]
+    },
+    "PublicPortalConfig": {
+      "title": "PublicPortalConfig",
+      "description": "Public hosting, published URL, invite code, and account onboarding settings managed by Super Admin",
+      "type": "object",
+      "properties": {
+        "portalTitle": { "type": "string" },
+        "publicUrl": { "type": "string" },
+        "customDomain": { "type": "string" },
+        "welcomeMessage": { "type": "string" },
+        "inviteCode": { "type": "string" },
+        "portalPublished": { "type": "boolean" },
+        "allowPublicSignUp": { "type": "boolean" },
+        "requireAdminApproval": { "type": "boolean" },
+        "updatedBy": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["portalTitle", "publicUrl", "customDomain", "welcomeMessage", "inviteCode", "portalPublished", "allowPublicSignUp", "requireAdminApproval", "updatedBy", "updatedAt"]
+    },
+    "AcademyCourse": {
+      "title": "AcademyCourse",
+      "description": "CODIVA Academy course or certification track managed by Super Admin, HOD, and active Lecturers",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "programType": { "type": "string", "enum": ["TRAINING", "CERTIFICATION"] },
+        "level": { "type": "string" },
+        "duration": { "type": "string" },
+        "description": { "type": "string" },
+        "instructorId": { "type": "string" },
+        "instructorName": { "type": "string" },
+        "status": { "type": "string", "enum": ["DRAFT", "PUBLISHED", "ARCHIVED"] },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "programType", "level", "duration", "description", "instructorId", "instructorName", "status", "createdBy", "createdAt", "updatedAt"]
+    },
+    "CodivaProject": {
+      "title": "CodivaProject",
+      "description": "CODIVA Technologies delivery project with RBAC across Super Admin, HOD, Staff, Finance, and Clients",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "category": { "type": "string" },
+        "summary": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "leadUid": { "type": "string" },
+        "clientUid": { "type": "string" },
+        "visibility": { "type": "string", "enum": ["PUBLIC", "INTERNAL", "CLIENT_ONLY"] },
+        "status": { "type": "string", "enum": ["PLANNING", "IN_PROGRESS", "COMPLETED", "ARCHIVED"] },
+        "budgetCents": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "category", "summary", "ownerId", "leadUid", "visibility", "status", "budgetCents", "createdAt", "updatedAt"]
+    },
+    "AdminPublication": {
+      "title": "AdminPublication",
+      "description": "Information, announcements, guides, and document links published by CODIVA Administration to user dashboards",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "summary": { "type": "string" },
+        "content": { "type": "string" },
+        "category": { "type": "string", "enum": ["ANNOUNCEMENT", "DOCUMENT", "NEWS", "GUIDE", "FAQ"] },
+        "targetRole": { "type": "string", "enum": ["ALL", "USER", "MEMBER", "STAFF", "LECTURER", "PARENT", "HOD", "FINANCE", "PARTNER"] },
+        "documentUrl": { "type": "string" },
+        "documentLabel": { "type": "string" },
+        "expiresAtLabel": { "type": "string" },
+        "status": { "type": "string", "enum": ["PUBLISHED", "DRAFT", "EXPIRED"] },
+        "publishedBy": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "summary", "content", "category", "targetRole", "documentUrl", "documentLabel", "expiresAtLabel", "status", "publishedBy", "createdBy", "createdAt", "updatedAt"]
+    },
+    "AppRelease": {
+      "title": "AppRelease",
+      "description": "CODIVA Technologies app download and store release catalog for Android, iOS, Windows, and Web",
+      "type": "object",
+      "properties": {
+        "platform": { "type": "string", "enum": ["ANDROID", "IOS", "WINDOWS", "WEB"] },
+        "versionName": { "type": "string" },
+        "buildNumber": { "type": "integer" },
+        "releaseNotes": { "type": "string" },
+        "downloadUrl": { "type": "string" },
+        "status": { "type": "string", "enum": ["LIVE", "BETA", "RETIRED"] },
+        "updatedBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["platform", "versionName", "buildNumber", "releaseNotes", "downloadUrl", "status", "updatedBy", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User profile and portal role metadata isolated by userId"
+    },
+    "/users/{userId}/inquiries/{inquiryId}": {
+      "schema": { "$ref": "#/entities/ProjectInquiry" },
+      "description": "Project inquiries submitted by the authenticated user"
+    },
+    "/users/{userId}/enrollments/{enrollmentId}": {
+      "schema": { "$ref": "#/entities/CourseEnrollment" },
+      "description": "CODIVA Academy training and certification enrollments for the user"
+    },
+    "/users/{userId}/applications/{applicationId}": {
+      "schema": { "$ref": "#/entities/CareerApplication" },
+      "description": "CODIVA Careers job applications submitted by the user"
+    },
+    "/users/{userId}/workspace_records/{recordId}": {
+      "schema": { "$ref": "#/entities/WorkspaceRecord" },
+      "description": "Operational records for Admin and Role Dashboards isolated by userId"
+    },
+    "/users/{userId}/audit_logs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLogEntry" },
+      "description": "Append-only security and administration audit logs"
+    },
+    "/users/{userId}/system_config/settings": {
+      "schema": { "$ref": "#/entities/SystemSettingsDoc" },
+      "description": "Platform system settings document"
+    },
+    "/public_portal/config": {
+      "schema": { "$ref": "#/entities/PublicPortalConfig" },
+      "description": "Public hosting URL, launch status, and account sign-up settings"
+    },
+    "/academy/{courseId}": {
+      "schema": { "$ref": "#/entities/AcademyCourse" },
+      "description": "CODIVA Academy courses and certification tracks with role-based access control"
+    },
+    "/projects/{projectId}": {
+      "schema": { "$ref": "#/entities/CodivaProject" },
+      "description": "CODIVA Technologies projects with role-based access control"
+    },
+    "/publications/{pubId}": {
+      "schema": { "$ref": "#/entities/AdminPublication" },
+      "description": "Admin-posted announcements, guides, and documents visible on user dashboards"
+    },
+    "/app_releases/{releaseId}": {
+      "schema": { "$ref": "#/entities/AppRelease" },
+      "description": "Platform app store and desktop/web release listings for CODIVA Technologies"
+    }
+  }
+}

@@ -1,0 +1,30 @@
+<resources>
+    <string name="app_name">CODIVA</string>
+    <string name="brand_full_name">CODIVA Technologies</string>
+    <string name="brand_slogan">Code. Create. Connect.</string>
+    <string name="brand_vision_badge">LIBERIAN-FOUNDED • GLOBAL TECHNOLOGY VISION</string>
+    <string name="hero_headline">We build innovative websites and applications</string>
+    <string name="hero_subheadline">Building digital solutions. Connecting people. Empowering businesses.</string>
+    <string name="contact_phone">+250 794 756 871</string>
+    <string name="contact_email">info@codiva.com</string>
+    <string name="contact_location">Monrovia, Liberia</string>
+    <string name="nav_home">Home</string>
+    <string name="nav_solutions">Solutions</string>
+    <string name="nav_academy">Academy</string>
+    <string name="nav_careers">Careers</string>
+    <string name="nav_portal">Portal</string>
+    <string name="sign_in_google">Sign in with Google</string>
+    <string name="sign_out">Sign out</string>
+    <string name="submit_inquiry">Request Project Quote</string>
+    <string name="enroll_now">Enroll in Program</string>
+    <string name="apply_now">Apply Now</string>
+    <string name="copyright_notice">© 2026 CODIVA Technologies</string>
+    <string name="founder_dashboard_title">Founder Dashboard</string>
+    <string name="founder_control_subtitle">Super Administrator Primary Control Panel</string>
+    <string name="founder_nav_hub_title">Control Panel Navigation</string>
+    <string name="founder_full_console">All 12 Modules</string>
+    <string name="section_user_management">User Management</string>
+    <string name="section_academy_management">Academy Courses</string>
+    <string name="section_project_management">Project Tracking</string>
+    <string name="section_security_management">System Audit Logs</string>
+</resources>

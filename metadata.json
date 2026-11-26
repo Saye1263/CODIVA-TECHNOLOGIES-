@@ -1,0 +1,6 @@
+{
+  "name": "CODIVA",
+  "description": "CODIVA Technologies official Android app — services, products, projects, training academy, careers, and member portal.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
